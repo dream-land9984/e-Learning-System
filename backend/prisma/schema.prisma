@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model User {
+  id            String     @id @default(uuid())
+  first_name    String
+  last_name     String
+  email         String     @unique
+  password_hash String
+  role          String     @default("STUDENT")
+  status        String     @default("ACTIVE")
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  courses       Course[]   @relation("TeacherCourses")
+  results       Result[]
+  enrollments   Enrollment[]
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  category    String?
+  thumbnail   String?
+  teacher_id  String
+  teacher     User     @relation("TeacherCourses", fields: [teacher_id], references: [id])
+  duration    Int?     // Duration in minutes or hours
+  status      String   @default("PUBLISHED") // e.g. DRAFT, PUBLISHED
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  videos      Video[]
+  notes       Note[]
+  exams       Exam[]
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id         String   @id @default(uuid())
+  student_id String
+  student    User     @relation(fields: [student_id], references: [id])
+  course_id  String
+  course     Course   @relation(fields: [course_id], references: [id])
+  created_at DateTime @default(now())
+
+  @@unique([student_id, course_id])
+}
+
+model Video {
+  id          String   @id @default(uuid())
+  course_id   String
+  course      Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  title       String
+  video_url   String
+  description String?
+  duration    Int?     // in seconds
+  upload_date DateTime @default(now())
+}
+
+model Note {
+  id          String   @id @default(uuid())
+  course_id   String
+  course      Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  title       String
+  file_url    String
+  uploaded_at DateTime @default(now())
+}
+
+model Exam {
+  id            String   @id @default(uuid())
+  course_id     String
+  course        Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  title         String
+  duration      Int      // in minutes
+  passing_mark  Int
+  start_date    DateTime?
+  end_date      DateTime?
+  created_at    DateTime @default(now())
+
+  questions     Question[]
+  results       Result[]
+}
+
+model Question {
+  id            String       @id @default(uuid())
+  exam_id       String
+  exam          Exam         @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  question_text String
+  question_type String
+  marks         Int
+  options       String?        // Stores options for MCQ or True/False (JSON stringified)
+  correct_answer String?     // Can store the correct option or expected answer
+
+  @@index([exam_id])
+}
+
+model Result {
+  id         String   @id @default(uuid())
+  student_id String
+  student    User     @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  exam_id    String
+  exam       Exam     @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  score      Int
+  percentage Float
+  status     String   // e.g. PASS, FAIL
+  created_at DateTime @default(now())
+
+  @@unique([student_id, exam_id])
+}
